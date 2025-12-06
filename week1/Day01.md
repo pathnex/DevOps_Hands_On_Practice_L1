@@ -2,7 +2,7 @@
 
 ## 🔹 Ansible Task — Install Nginx on Pathnex Server
 
-Rewrite this YAML manually:
+Rewrite YAML manually:
 
 ---
 - name: Install Nginx on Pathnex server
