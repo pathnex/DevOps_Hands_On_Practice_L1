@@ -1,0 +1,22 @@
+
+stages:
+  - build
+  - promote
+
+build:
+  stage: build
+  image: maven:3.8.1-jdk-17
+  script:
+    - mvn clean package
+  artifacts:
+    paths:
+      - target/*.jar
+    expire_in: 1 week
+
+promote:
+  stage: promote
+  image: alpine:latest
+  script:
+    - echo "Promoting artifacts for Pathnex"
+    - ls -lh target/
+  when: manual
