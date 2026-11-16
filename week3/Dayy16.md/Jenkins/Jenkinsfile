@@ -1,0 +1,25 @@
+
+pipeline {
+    agent any
+
+    environment {
+        INSTITUTE_NAME = "Pathnex"
+    }
+
+    stages {
+        stage('Build') {
+            steps {
+                sh 'mvn clean package'
+                archiveArtifacts artifacts: 'target/*.jar'
+            }
+        }
+
+        stage('Promote') {
+            steps {
+                input message: "Promote artifacts to staging?"
+
+                sh 'echo "Promoting artifacts for $INSTITUTE_NAME"'
+            }
+        }
+    }
+}
