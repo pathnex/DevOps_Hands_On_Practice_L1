@@ -20,18 +20,18 @@
 
 # variables.tf
 variable "instance_type" {
-  default = "c6a.12xlarge"
+  default = "t3.micro"
 }
 
 # main.tf
-resource "aws_instance" "PathnexServer" {
-  ami           = "ami-0abcd1234abcd1234"
+resource "aws_instance" "pathnex_server" {
+  ami           = ""ami-0912f71e06545ad88"
   instance_type = var.instance_type
 }
 
-# output
+# outputs.tf
 output "pathnex_ip" {
-  value = aws_instance.PathnexServer.public_ip
+  value = aws_instance.pathnex_server.public_ip
 }
 
 
@@ -60,29 +60,34 @@ spec:
 
 #!/bin/bash
 
-tar -czf /backup/pathnex-logs-$(date +%F).tar.gz /var/log/
-echo "Logs archived."
+set -e
 
+mkdir -p /backup
+
+tar -czf /backup/pathnex-logs-$(date +%F).tar.gz /var/log/
+
+echo "Logs archived successfully."
 
 # Rollback Simulation
 
 ## 🔹 Jenkins Pipeline — Rollback on Failure
-You will learn how to **simulate rollback if deployment fails**.
-
 pipeline {
     agent any
+
     environment {
         INSTITUTE_NAME = "Pathnex"
     }
+
     stages {
         stage('Deploy') {
             steps {
                 script {
                     try {
                         sh 'echo "Deploying $INSTITUTE_NAME application..."'
-                        sh 'exit 1' // simulate failure
+                        sh 'exit 1'
                     } catch (Exception e) {
-                        echo "Deployment failed. Rolling back $INSTITUTE_NAME application..."
+                        echo "Deployment failed. Rolling back ${env.INSTITUTE_NAME} application..."
+                        currentBuild.result = 'FAILURE'
                     }
                 }
             }
@@ -91,8 +96,6 @@ pipeline {
 }
 
 ## 🔹 GitLab CI — Rollback Simulation
-You will learn how to **simulate rollback using after_script**.
-
 stages:
   - deploy
 
@@ -102,8 +105,13 @@ variables:
 deploy:
   stage: deploy
   image: alpine:latest
+
   script:
     - echo "Deploying $INSTITUTE_NAME application..."
     - exit 1
+
   after_script:
-    - echo "Deployment failed. Rolling back $INSTITUTE_NAME application..."
+    - |
+      if [ "$CI_JOB_STATUS" = "failed" ]; then
+        echo "Deployment failed. Rolling back $INSTITUTE_NAME application..."
+      fi
