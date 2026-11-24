@@ -18,7 +18,7 @@
 
 resource "aws_lb_listener" "PathnexListener" {
   load_balancer_arn = aws_lb.PathnexALB.arn
-  port              = "80"
+  port              = 80
   protocol          = "HTTP"
 
   default_action {
@@ -43,8 +43,10 @@ spec:
     storage: 1Gi
   accessModes:
     - ReadWriteOnce
+  storageClassName: ""
   hostPath:
     path: /data/pathnex
+    type: DirectoryOrCreate
 
 ---
 apiVersion: v1
@@ -54,6 +56,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: ""
   resources:
     requests:
       storage: 500Mi
