@@ -17,19 +17,26 @@
       git:
         repo: "https://github.com/pathnex/app.git"
         dest: "/opt/pathnex-app"
-
+        update: yes
+        force: yes
 
 ## 🔹 Terraform — RDS Skeleton (MySQL)
 
-resource "aws_db_instance" "PathnexRDS" {
+resource "aws_db_instance" "pathnex_rds" {
   allocated_storage      = 20
   engine                 = "mysql"
   instance_class         = "db.t3.micro"
   username               = "admin"
-  password               = "Pathnex123"
+  password               =  var.db_password
   skip_final_snapshot    = true
+  publicly_accessible    = false
 }
 
+
+variable "db_password" {
+  type      = string
+  sensitive = true
+}
 
 ## 🔹 Kubernetes — Deployment Rolling Update (Detailed)
 
@@ -57,18 +64,16 @@ spec:
           image: nginx
 
 
+
 ## 🔹 Shell Script — Check Internet Connectivity
 
 #!/bin/bash
 
-ping -c 2 google.com &> /dev/null
-
-if [ $? -eq 0 ]; then
-  echo "Internet is available"
+if ping -c 2 -W 2 google.com >/dev/null 2>&1; then
+    echo "Internet is available"
 else
-  echo "No internet connection"
+    echo "No internet connection"
 fi
-
 
 # Approvals
 

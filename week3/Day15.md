@@ -1,9 +1,7 @@
 # Day 15 — Java, S3 Bucket, CronJob, File Reader
 
 ## 🔹 Ansible — Install Java & Set JAVA_HOME
-
----
-- name: Install Java on Pathnex server
+- name: Install Java on Pathnex Server
   hosts: all
   become: yes
 
@@ -11,45 +9,45 @@
     - name: Install OpenJDK
       yum:
         name: java-11-openjdk
-        state: present
+        state: present 
+    - name: Find Java installation path
+      command: readlink -f /usr/bin/java
+      register: java_path
+      changed_when: false
 
     - name: Set JAVA_HOME
       lineinfile:
         path: /etc/profile
-        line: 'export JAVA_HOME=/usr/lib/jvm/java-11-openjdk'
-
+        line: "export JAVA_HOME={{ java_path.stdout | regex_replace('/bin/java$', '') }}"
 
 ## 🔹 Terraform — Create S3 Bucket
 
 provider "aws" {
-  region = "us-east-1"
+    region = "us-east-1"
 }
 
-resource "aws_s3_bucket" "PathnexBucket" {
-  bucket = "pathnex-devops-bucket"
-
-  tags = {
-    Name = "PathnexBucket"
-  }
+resource "aws_s3_bucket" "PathnexBucket"{
+    bucket = "pathnex-devops-bucket"
+    tags = {
+      Name = "PathnexBucket"
+    }
 }
-
 
 ## 🔹 Kubernetes — CronJob
-
 apiVersion: batch/v1
-kind: CronJob
+kind: CronJOb
 metadata:
   name: pathnex-cron
 spec:
-  schedule: "*/5 * * * *"
+  schedule: "*/5 * * *"
   jobTemplate:
     spec:
       template:
         spec:
           containers:
-            - name: job
-              image: busybox
-              command: ["sh", "-c", "echo Pathnex CronJob running"]
+            -name: job
+            image: busybox
+            command: ["sh", "-c", "echo Pathnex CronJob running"]
           restartPolicy: OnFailure
 
 
@@ -59,10 +57,9 @@ spec:
 
 FILE="/etc/passwd"
 
-while read line; do
+while IFS=  read -r line; do
   echo "Line: $line"
-done < $FILE
-
+done < "$FILE"
 
 # Advanced Notifications
 
@@ -77,14 +74,14 @@ pipeline {
     }
     stages {
         stage('Checkout') {
-            steps {
-                git url: 'https://github.com/Pathnex/sample-java-app.git'
-            }
+          steps {
+            git url: 'https://github.com/Pathnex/sample-java-app.git'
+          }
         }
-        stage('Build') {
-            steps {
-                sh 'mvn clean package'
-            }
+        stage('Build'){
+          steps {
+            sh 'mvn clean package'
+          }
         }
     }
     post {
@@ -98,6 +95,7 @@ pipeline {
 }
 
 ## 🔹 GitLab CI — Slack Notification
+
 You will learn how to **notify Slack in GitLab CI**.
 
 stages:
@@ -105,7 +103,6 @@ stages:
 
 variables:
   INSTITUTE_NAME: "Pathnex"
-  SLACK_WEBHOOK: "https://hooks.slack.com/services/XXXXX/YYYYY/ZZZZZ"
 
 build:
   stage: build
@@ -114,4 +111,4 @@ build:
     - git clone https://github.com/Pathnex/sample-java-app.git
     - cd sample-java-app
     - mvn clean package
-    - curl -X POST -H 'Content-type: application/json' --data '{"text":"Build success for Pathnex"}' $SLACK_WEBHOOK
+    - curl -X POST -H 'Content-type: application/json' \ --data '{\"text\":\"Build success for $INSTITUTE_NAME\"}" \ "$SLACK_WEBHOOK"

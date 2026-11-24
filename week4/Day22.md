@@ -1,19 +1,28 @@
 # Day 22 — Handlers, Security Group, DaemonSet, Disk Monitor
 
 ## 🔹 Ansible — Use Handler on Config Change
-
----
 - name: Configure Nginx for Pathnex
   hosts: all
   become: yes
 
   tasks:
+    - name: Install Nginx
+      package:
+        name: nginx
+        state: present
+
     - name: Copy Nginx config
       copy:
-        dest: /etc/nginx/nginx.conf
+        dest: /etc/nginx/conf.d/pathnex.conf
         content: |
-          user nginx;
-          worker_processes auto;
+          server {
+            listen 8080;
+            server_name localhost;
+
+            location / {
+              return 200 "Pathnex Nginx is running";
+            }
+          }
       notify: Restart nginx
 
   handlers:
@@ -24,8 +33,7 @@
 
 
 ## 🔹 Terraform — Security Group
-
-resource "aws_security_group" "PathnexSG" {
+resource "aws_security_group" "pathnex_sg" {
   name   = "pathnex-sg"
   vpc_id = aws_vpc.PathnexVPC.id
 
@@ -36,6 +44,13 @@ resource "aws_security_group" "PathnexSG" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   tags = {
     Name = "Pathnex-SG"
   }
@@ -43,7 +58,6 @@ resource "aws_security_group" "PathnexSG" {
 
 
 ## 🔹 Kubernetes — DaemonSet
-
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -59,44 +73,51 @@ spec:
     spec:
       containers:
         - name: monitor
-          image: busybox
-          command: ["sh", "-c", "while true; do echo Pathnex Node Monitor; sleep 20; done"]
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - while true; do echo Pathnex Node Monitor; sleep 20; done
 
 
 ## 🔹 Shell Script — Monitor Disk Usage
-
 #!/bin/bash
 
-USAGE=$(df -h / | tail -1 | awk '{print $5}')
+USAGE=$(df -P / | tail -1 | awk '{print $5}' | tr -d '%')
 
-echo "Disk Usage: $USAGE"
+echo "Disk Usage: ${USAGE}%"
 
+if [ "$USAGE" -ge 80 ]; then
+    echo "WARNING: Disk usage is above 80%"
+else
+    echo "Disk usage is normal"
+fi
 
 # Advanced Triggers
-
 ## 🔹 Jenkins Pipeline — Trigger on Git Tag
 You will learn how to **trigger builds on Git tags** with realistic tags.
 
 pipeline {
     agent any
+
     environment {
         INSTITUTE_NAME = "Pathnex"
         TEAM = "DevOps"
         ENV = "prod"
     }
-    triggers {
-        pollSCM('H/15 * * * *')
-    }
+
     stages {
         stage('Checkout') {
             steps {
-                git url: 'https://github.com/Pathnex/sample-java-app.git', branch: 'main'
+                checkout scm
             }
         }
+
         stage('Build') {
             when {
                 buildingTag()
             }
+
             steps {
                 sh 'echo "Building $INSTITUTE_NAME app for $TEAM team in $ENV environment"'
             }
@@ -105,8 +126,6 @@ pipeline {
 }
 
 ## 🔹 GitLab CI — Trigger on Tag
-You will learn how to **trigger CI jobs when a tag is pushed**.
-
 stages:
   - build
 
@@ -117,8 +136,12 @@ variables:
 
 build:
   stage: build
+
   image: maven:3.8.1-jdk-17
+
   script:
     - echo "Building $INSTITUTE_NAME app for $TEAM team in $ENV environment"
-  only:
-    - tags
+    - mvn clean package
+
+  rules:
+    - if: '$CI_COMMIT_TAG'
