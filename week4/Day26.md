@@ -1,20 +1,16 @@
 # Day 26 — Packages + Services, R53 Record, InitContainer, Status Script
 
 ## 🔹 Ansible — Install + Start Multiple Services
-
----
-- name: Install and enable services
+- name: Insatll and enable services
   hosts: all
   become: yes
-
   tasks:
-    - name: Install services
+    - name: Install services 
       yum:
         name:
           - httpd
           - firewalld
         state: present
-
     - name: Enable and start services
       service:
         name: "{{ item }}"
@@ -23,7 +19,6 @@
       loop:
         - httpd
         - firewalld
-
 
 ## 🔹 Terraform — Route53 Record
 
@@ -34,7 +29,6 @@ resource "aws_route53_record" "PathnexRecord" {
   ttl     = 300
   records = [aws_eip.PathnexEIP.public_ip]
 }
-
 
 ## 🔹 Kubernetes — Init Container
 
@@ -55,11 +49,9 @@ spec:
 ## 🔹 Shell Script — System Status
 
 #!/bin/bash
-
 echo "Hostname: $(hostname)"
 echo "Uptime: $(uptime)"
 echo "IP: $(hostname -I)"
-
 
 # GitLab Dynamic Environments
 
@@ -97,8 +89,10 @@ variables:
 deploy:
   stage: deploy
   image: alpine:latest
+
   environment:
-    name: $CI_COMMIT_REF_NAME
-    url: http://$CI_COMMIT_REF_NAME.pathnex.com
+    name: $CI_COMMIT_REF_SLUG
+    url: "http://$CI_COMMIT_REF_SLUG.pathnex.com"
+
   script:
-    - echo "Deploying $INSTITUTE_NAME app to $CI_COMMIT_REF_NAME for $TEAM team"
+    - echo "Deploying $INSTITUTE_NAME app to $CI_COMMIT_REF_SLUG for $TEAM team"
