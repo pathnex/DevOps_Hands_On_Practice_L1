@@ -1,0 +1,6 @@
+- name: Configure Pathnex server
+  hosts: all
+  become: yes
+
+  roles:
+    - pathnex
