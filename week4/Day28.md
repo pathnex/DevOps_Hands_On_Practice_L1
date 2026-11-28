@@ -4,33 +4,33 @@ Fix these intentionally broken files:
 
 ## 🔹 Ansible — Broken
 
-- name Install nginx
- hosts all
- tasks:
-  - name missing
+- name: Install nginx
+  hosts: all
+  become: yes
+  tasks:
+  - name: Install nginx package
     yum:
-      name nginx
-      state present
+      name: nginx
+      state: present
 
 
 ## 🔹 Terraform — Broken
 
-resource "aws_s3" "BadBucket" {
-bucket = pathnex-bucket
-acl public-read
+resource "aws_s3_bucket" "BadBucket" {
+  bucket = "pathnex-bucket"
 }
 
 
 ## 🔹 Kubernetes — Broken
 
-apiVersion v1
-kind Pod
+apiVersion: v1
+kind: Pod
 metadata:
- name brokenpod
+ name: brokenpod
 spec:
  containers:
-  -name app
-   image nginx
+  - name: app
+    image: nginx
 
 
 # Rollback Strategies
@@ -40,20 +40,23 @@ You will learn how to **rollback automatically if deployment fails**.
 
 pipeline {
     agent any
+
     environment {
         INSTITUTE_NAME = "Pathnex"
         TEAM = "DevOps"
         ENV = "prod"
     }
+
     stages {
         stage('Deploy') {
             steps {
                 script {
                     try {
                         sh 'echo "Deploying $INSTITUTE_NAME app in $ENV for $TEAM"'
-                        sh 'exit 1' // simulate failure
+                        sh 'exit 1'
                     } catch (Exception e) {
                         echo "Deployment failed. Rolling back $INSTITUTE_NAME app in $ENV"
+                        sh 'echo "Previous version restored successfully"'
                     }
                 }
             }
@@ -69,8 +72,8 @@ stages:
 
 variables:
   INSTITUTE_NAME: "Pathnex"
-  TEAM = "DevOps"
-  ENV = "prod"
+  TEAM: "DevOps"
+  ENV: "prod"
 
 deploy:
   stage: deploy

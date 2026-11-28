@@ -1,8 +1,6 @@
 # Day 23 — Tags, EIP, HPA, Kill Process
 
 ## 🔹 Ansible — Add Tags to Users
-
----
 - name: Create users with comments
   hosts: all
   become: yes
@@ -12,11 +10,14 @@
       user:
         name: devuser
         comment: "Pathnex Developer User"
+      tags:
+        - users
 
 
 ## 🔹 Terraform — Elastic IP
 
 resource "aws_eip" "PathnexEIP" {
+  domain   = "vpc"
   instance = aws_instance.PathnexEC2.id
 
   tags = {
@@ -26,7 +27,6 @@ resource "aws_eip" "PathnexEIP" {
 
 
 ## 🔹 Kubernetes — Horizontal Pod Autoscaler (HPA)
-
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -50,17 +50,28 @@ spec:
 ## 🔹 Shell Script — Kill High CPU Process
 
 #!/bin/bash
+PROCESS=$(ps -eo pid,comm,%cpu --sort=-%cpu | awk 'NR==2')
 
-PID=$(ps aux --sort=-%cpu | awk 'NR==2{print $2}')
+PID=$(echo "$PROCESS" | awk '{print $1}')
+NAME=$(echo "$PROCESS" | awk '{print $2}')
+CPU=$(echo "$PROCESS" | awk '{print $3}')
 
-echo "Killing process: $PID"
-kill -9 $PID
+echo "Process: $NAME"
+echo "PID: $PID"
+echo "CPU Usage: $CPU%"
+
+if awk -v cpu="$CPU" 'BEGIN {exit !(cpu >= 80)}'; then
+    echo "WARNING: High CPU usage detected"
+    kill -TERM "$PID"
+    echo "Termination signal sent"
+else
+    echo "CPU usage is normal"
+fi
 
 # Docker Integration
 
 ## 🔹 Jenkins Pipeline — Build Docker Image
 You will learn how to **build and tag Docker images** with proper labels.
-
 pipeline {
     agent any
     environment {
@@ -78,11 +89,11 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
-                docker build -t pathnex/webapp:${ENV}-${BUILD_NUMBER} \
-                --label "INSTITUTE_NAME=$INSTITUTE_NAME" \
-                --label "TEAM=$TEAM" \
-                --label "ENV=$ENV" \
-                --label "PROJECT=$PROJECT" .
+                    docker build -t pathnex/webapp:${ENV}-${BUILD_NUMBER} \
+                    --label "INSTITUTE_NAME=$INSTITUTE_NAME" \
+                    --label "TEAM=$TEAM" \
+                    --label "ENV=$ENV" \
+                    --label "PROJECT=$PROJECT" .
                 '''
             }
         }
@@ -94,21 +105,24 @@ You will learn how to **build Docker images in GitLab CI**.
 
 stages:
   - docker-build
-
 variables:
   INSTITUTE_NAME: "Pathnex"
   TEAM: "DevOps"
   ENV: "staging"
   PROJECT: "WebApp"
-
+  DOCKER_HOST: "tcp://docker:2375"
+  DOCKER_TLS_CERTDIR: ""
 docker-build:
   stage: docker-build
-  image: docker:latest
+  image: docker:cli
   services:
-    - docker:dind
+    - name: docker:dind
+      alias: docker
   script:
-    - docker build -t pathnex/webapp:${ENV}-${CI_PIPELINE_ID} \
-      --label "INSTITUTE_NAME=$INSTITUTE_NAME" \
-      --label "TEAM=$TEAM" \
-      --label "ENV=$ENV" \
-      --label "PROJECT=$PROJECT" .
+    - |
+      docker build \
+        -t pathnex/webapp:${ENV}-${CI_PIPELINE_ID} \
+        --label "INSTITUTE_NAME=$INSTITUTE_NAME" \
+        --label "TEAM=$TEAM" \
+        --label "ENV=$ENV" \
+        --label "PROJECT=$PROJECT" .
